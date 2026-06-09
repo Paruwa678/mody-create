@@ -1,0 +1,42 @@
+name: Auto Generate Unsup Manifest
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'mods/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate manifest.json
+        run: |
+          echo '{"files":{}}' > manifest.json
+          if [ -d "mods" ]; then
+            cd mods
+            for file in *.jar; do
+              if [ -f "$file" ]; then
+                sha=$(sha256sum "$file" | awk '{print $1}')
+                cd ..
+                # Dodaj wpis do manifest.json przy użyciu Pythona
+                python3 -c "import json; d=json.load(open('manifest.json')); d['files']['mods/$file']='$sha'; json.dump(d, open('manifest.json', 'w'), indent=4)"
+                cd mods
+              fi
+            done
+            cd ..
+          fi
+
+      - name: Commit and Push Manifest
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add manifest.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-generate manifest.json [skip ci]" && git push)
