@@ -9,19 +9,16 @@ console.log("========================================");
 console.log("Pilnuje Twojego folderu na Pulpicie... Wrzuć lub usuń moda,");
 console.log("a system sam wygeneruje manifest i zaktualizuje launcher u znajomych!\n");
 
-// Funkcja szukająca ukrytego programu git.exe od GitHub Desktop
 function getGitPath() {
-    const userProfile = process.env.USERPROFILE;
     const appDataLocal = process.env.LOCALAPPDATA;
-    
-    // Najczęstsza ścieżka w GitHub Desktop
     if (appDataLocal) {
         const ghDesktopDir = path.join(appDataLocal, 'GitHubDesktop');
         if (fs.existsSync(ghDesktopDir)) {
             const appDirs = fs.readdirSync(ghDesktopDir).filter(f => f.startsWith('app-'));
             if (appDirs.length > 0) {
-                // Wybieramy najnowszą wersję aplikacji
+                // Sortujemy od najnowszej wersji aplikacji
                 appDirs.sort().reverse();
+                // !!! POPRAWKA KRYTYCZNA: Pobieramy konkretny, pierwszy element tablicy jako string [0] !!!
                 const fullGitPath = path.join(ghDesktopDir, appDirs[0], 'resources', 'app', 'git', 'cmd', 'git.exe');
                 if (fs.existsSync(fullGitPath)) {
                     return `"${fullGitPath}"`;
@@ -29,7 +26,6 @@ function getGitPath() {
             }
         }
     }
-    // Awaryjna domyślna komenda, jeśli zainstalowano czystego Gita
     return 'git';
 }
 
@@ -62,14 +58,15 @@ function wyslijNaGitHub() {
     try {
         console.log("[GITHUB]: Rozpoczynanie automatycznego wypychania plikow do chmury...");
         
-        // Używamy precyzyjnie zlokalizowanego pliku git.exe
         execSync(`${gitCmd} add .`, { cwd: __dirname });
         execSync(`${gitCmd} commit -m "Automatyczna aktualizacja paczki przez straznika"`, { cwd: __dirname });
-        execSync(`${gitCmd} push origin main`, { cwd: __dirname });
+        
+        console.log("[GITHUB]: Wymuszanie aktualizacji serwera (force push)...");
+        execSync(`${gitCmd} push origin main --force`, { cwd: __dirname, stdio: 'ignore' });
         
         console.log("\n=== [SUKCES]: Zmiany sa juz aktywne w sieci! Znajomi moga pobierac nowosci. ===\n");
     } catch (err) {
-        console.log("[GITHUB]: Brak nowych zmian do wysłania lub serwer jest zajęty.\n");
+        console.log("[GITHUB]: Wystąpił nieoczekiwany problem przy wysyłaniu plików.\n");
     }
 }
 
